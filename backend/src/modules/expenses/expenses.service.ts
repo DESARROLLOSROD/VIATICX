@@ -3,13 +3,38 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { Expense, ExpenseStatus } from './expense.entity';
 import { CreateExpenseDto, UpdateExpenseDto, FilterExpensesDto, ApproveExpenseDto, RejectExpenseDto } from './dto/expense.dto';
+import { Attachment } from './attachment.entity';
 
 @Injectable()
 export class ExpensesService {
   constructor(
     @InjectRepository(Expense)
     private expensesRepository: Repository<Expense>,
-  ) {}
+    @InjectRepository(Attachment)
+    private attachmentsRepository: Repository<Attachment>,
+  ) { }
+
+  async addAttachment(id: string, file: Express.Multer.File, companyId: string, userId: string): Promise<Attachment> {
+    const expense = await this.findOne(id, companyId, userId, false);
+
+    if (expense.status !== ExpenseStatus.PENDING) {
+      throw new BadRequestException('Solo se pueden agregar archivos a gastos pendientes');
+    }
+
+    if (expense.userId !== userId) {
+      throw new ForbiddenException('Solo puedes agregar archivos a tus propios gastos');
+    }
+
+    const attachment = this.attachmentsRepository.create({
+      fileName: file.originalname,
+      filePath: file.filename, // Storing just filename, assuming serving from uploads root
+      fileType: file.mimetype,
+      expense,
+    });
+
+    return this.attachmentsRepository.save(attachment);
+  }
+
 
   async create(createExpenseDto: CreateExpenseDto, userId: string, companyId: string): Promise<Expense> {
     const expense = this.expensesRepository.create({
@@ -85,7 +110,7 @@ export class ExpensesService {
   async findOne(id: string, companyId: string, userId?: string, isAdmin?: boolean): Promise<Expense> {
     const expense = await this.expensesRepository.findOne({
       where: { id, companyId },
-      relations: ['user', 'category', 'project', 'approver'],
+      relations: ['user', 'category', 'project', 'approver', 'attachments'],
     });
 
     if (!expense) {
@@ -217,7 +242,7 @@ export class ExpensesService {
     }
 
     const totalExpenses = await queryBuilder.getCount();
-    
+
     const pending = await queryBuilder
       .clone()
       .andWhere('expense.status = :status', { status: ExpenseStatus.PENDING })

@@ -30,11 +30,18 @@ export interface Expense {
   approvedAt?: string;
   rejectedReason?: string;
   createdAt: string;
+  attachments?: Array<{
+    id: string;
+    fileName: string;
+    filePath: string;
+    fileType: string;
+  }>;
 }
 
 export interface CreateExpenseData {
   expenseDate: string;
   amount: number;
+  currency?: string;
   description: string;
   categoryId?: string;
   projectId?: string;
@@ -90,6 +97,17 @@ export const expensesService = {
 
   async rejectExpense(id: string, reason: string): Promise<Expense> {
     const response = await apiClient.post(`/expenses/${id}/reject`, { reason });
+    return response.data;
+  },
+
+  async addAttachment(id: string, file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post(`/expenses/${id}/attachments`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return response.data;
   },
 

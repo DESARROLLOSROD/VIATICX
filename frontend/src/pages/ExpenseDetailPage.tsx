@@ -17,51 +17,10 @@ import {
   FolderOpen
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import MainLayout from '../components/layout/MainLayout'
-import { expensesApi } from '../services/api'
+import MainLayout from '@/components/layout/MainLayout'
+import { expensesService } from '@/services/expenses.service'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-
-interface Expense {
-  id: string
-  expense_date: string
-  amount: number
-  currency: string
-  description: string
-  merchant_name: string
-  payment_method: string
-  status: 'pending' | 'approved' | 'rejected' | 'cancelled'
-  category?: {
-    id: string
-    name: string
-  }
-  project?: {
-    id: string
-    name: string
-    code: string
-  }
-  user: {
-    id: string
-    first_name: string
-    last_name: string
-    email: string
-  }
-  attachments?: Array<{
-    id: string
-    file_name: string
-    file_path: string
-    file_type: string
-  }>
-  approval_notes?: string
-  approved_by?: {
-    first_name: string
-    last_name: string
-  }
-  approved_at?: string
-  rejected_reason?: string
-  created_at: string
-  updated_at: string
-}
 
 const ExpenseDetailPage = () => {
   const { id } = useParams<{ id: string }>()
@@ -70,12 +29,12 @@ const ExpenseDetailPage = () => {
 
   const { data: expense, isLoading } = useQuery({
     queryKey: ['expense', id],
-    queryFn: () => expensesApi.getById(id!),
+    queryFn: () => expensesService.getExpense(id!),
     enabled: !!id,
   })
 
   const deleteMutation = useMutation({
-    mutationFn: () => expensesApi.delete(id!),
+    mutationFn: () => expensesService.deleteExpense(id!),
     onSuccess: () => {
       toast.success('Gasto eliminado exitosamente')
       queryClient.invalidateQueries({ queryKey: ['expenses'] })
@@ -104,7 +63,7 @@ const ExpenseDetailPage = () => {
       cancelled: { label: 'Cancelado', color: 'bg-gray-100 text-gray-800', icon: XCircle },
     }
 
-    const config = statusConfig[status as keyof typeof statusConfig]
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending
     const Icon = config.icon
 
     return (
@@ -187,12 +146,12 @@ const ExpenseDetailPage = () => {
               <p className="text-sm text-gray-500 mb-2">Estado del Gasto</p>
               {getStatusBadge(expense.status)}
             </div>
-            {expense.approved_by && expense.approved_at && (
+            {expense.approver && expense.approvedAt && (
               <div className="text-right">
                 <p className="text-sm text-gray-500">Aprobado por</p>
-                <p className="font-medium">{expense.approved_by.first_name} {expense.approved_by.last_name}</p>
+                <p className="font-medium">{expense.approver.firstName} {expense.approver.lastName}</p>
                 <p className="text-sm text-gray-400">
-                  {format(new Date(expense.approved_at), 'dd MMM yyyy HH:mm', { locale: es })}
+                  {format(new Date(expense.approvedAt), 'dd MMM yyyy HH:mm', { locale: es })}
                 </p>
               </div>
             )}
@@ -223,14 +182,14 @@ const ExpenseDetailPage = () => {
                     <div className="flex items-center gap-2 mt-1">
                       <Calendar size={16} className="text-gray-400" />
                       <p className="font-medium">
-                        {format(new Date(expense.expense_date), 'dd MMMM yyyy', { locale: es })}
+                        {format(new Date(expense.expenseDate), 'dd MMMM yyyy', { locale: es })}
                       </p>
                     </div>
                   </div>
 
                   <div>
                     <p className="text-sm text-gray-500">Método de Pago</p>
-                    <p className="font-medium mt-1">{expense.payment_method}</p>
+                    <p className="font-medium mt-1">{expense.paymentMethod}</p>
                   </div>
                 </div>
 
@@ -238,7 +197,7 @@ const ExpenseDetailPage = () => {
                   <p className="text-sm text-gray-500">Comercio / Proveedor</p>
                   <div className="flex items-center gap-2 mt-1">
                     <Building size={16} className="text-gray-400" />
-                    <p className="font-medium">{expense.merchant_name || 'No especificado'}</p>
+                    <p className="font-medium">{expense.merchantName || 'No especificado'}</p>
                   </div>
                 </div>
 
@@ -272,7 +231,7 @@ const ExpenseDetailPage = () => {
                     <p className="text-sm text-gray-500">Proyecto</p>
                     <div className="flex items-center gap-2 mt-1">
                       <FolderOpen size={16} className="text-gray-400" />
-                      <p className="font-medium">{expense.project.name} ({expense.project.code})</p>
+                      <p className="font-medium">{expense.project.name}</p>
                     </div>
                   </div>
                 )}
@@ -282,8 +241,7 @@ const ExpenseDetailPage = () => {
                   <div className="flex items-center gap-2 mt-1">
                     <User size={16} className="text-gray-400" />
                     <div>
-                      <p className="font-medium">{expense.user.first_name} {expense.user.last_name}</p>
-                      <p className="text-sm text-gray-400">{expense.user.email}</p>
+                      <p className="font-medium">{expense.user.firstName} {expense.user.lastName}</p>
                     </div>
                   </div>
                 </div>
@@ -292,13 +250,7 @@ const ExpenseDetailPage = () => {
                   <div>
                     <p className="text-sm text-gray-500">Fecha de Registro</p>
                     <p className="text-sm font-medium mt-1">
-                      {format(new Date(expense.created_at), 'dd MMM yyyy HH:mm', { locale: es })}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Última Actualización</p>
-                    <p className="text-sm font-medium mt-1">
-                      {format(new Date(expense.updated_at), 'dd MMM yyyy HH:mm', { locale: es })}
+                      {format(new Date(expense.createdAt), 'dd MMM yyyy HH:mm', { locale: es })}
                     </p>
                   </div>
                 </div>
@@ -306,16 +258,14 @@ const ExpenseDetailPage = () => {
             </div>
 
             {/* Approval/Rejection Notes */}
-            {(expense.approval_notes || expense.rejected_reason) && (
+            {expense.rejectedReason && (
               <div className="bg-white rounded-lg shadow p-6">
                 <h2 className="text-lg font-semibold mb-4">
-                  {expense.status === 'approved' ? 'Notas de Aprobación' : 'Razón de Rechazo'}
+                  Razón de Rechazo
                 </h2>
-                <div className={`p-4 rounded-lg ${
-                  expense.status === 'approved' ? 'bg-green-50' : 'bg-red-50'
-                }`}>
+                <div className="p-4 rounded-lg bg-red-50">
                   <p className="text-gray-700">
-                    {expense.approval_notes || expense.rejected_reason}
+                    {expense.rejectedReason}
                   </p>
                 </div>
               </div>
@@ -338,8 +288,8 @@ const ExpenseDetailPage = () => {
                       <div className="flex items-center gap-2">
                         <FileText size={20} className="text-blue-600" />
                         <div>
-                          <p className="text-sm font-medium">{file.file_name}</p>
-                          <p className="text-xs text-gray-500">{file.file_type}</p>
+                          <p className="text-sm font-medium">{file.fileName}</p>
+                          <p className="text-xs text-gray-500">{file.fileType}</p>
                         </div>
                       </div>
                       <button className="p-2 hover:bg-gray-200 rounded-lg transition-colors">

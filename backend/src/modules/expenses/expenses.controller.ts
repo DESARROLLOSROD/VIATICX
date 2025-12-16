@@ -9,7 +9,12 @@ import {
   UseGuards,
   Request,
   Query,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { ExpensesService } from './expenses.service';
 import { CreateExpenseDto, UpdateExpenseDto, FilterExpensesDto, ApproveExpenseDto, RejectExpenseDto } from './dto/expense.dto';
@@ -23,7 +28,7 @@ import { UserRole } from '../users/user.entity';
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class ExpensesController {
-  constructor(private readonly expensesService: ExpensesService) {}
+  constructor(private readonly expensesService: ExpensesService) { }
 
   @Post()
   @ApiOperation({ summary: 'Crear nuevo gasto' })
@@ -140,5 +145,25 @@ export class ExpensesController {
       req.user.companyId,
       req.user.id,
     );
+  }
+
+  @Post(':id/attachments')
+  @UseInterceptors(FileInterceptor('file', {
+    storage: diskStorage({
+      destination: './uploads',
+      filename: (req, file, cb) => {
+        const randomName = Array(32).fill(null).map(() => (Math.round(Math.random() * 16)).toString(16)).join('');
+        cb(null, `${randomName}${extname(file.originalname)}`);
+      },
+    }),
+  }))
+  @ApiOperation({ summary: 'Subir archivo adjunto' })
+  @ApiResponse({ status: 200, description: 'Archivo subido exitosamente' })
+  async uploadAttachment(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Request() req,
+  ) {
+    return this.expensesService.addAttachment(id, file, req.user.companyId, req.user.id);
   }
 }

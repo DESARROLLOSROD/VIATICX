@@ -1,25 +1,26 @@
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { ArrowLeft, Save, Upload } from 'lucide-react'
+import { ArrowLeft, Save, FileText } from 'lucide-react'
 import toast from 'react-hot-toast'
-import MainLayout from '../components/layout/MainLayout'
-import { expensesApi } from '../services/api'
+import MainLayout from '@/components/layout/MainLayout'
+import { expensesService, CreateExpenseData } from '@/services/expenses.service'
 import { format } from 'date-fns'
+import ImageUpload from '@/components/ui/ImageUpload'
 
+// Schema matching CreateExpenseData (camelCase)
 const expenseSchema = z.object({
-  expense_date: z.string().min(1, 'La fecha es requerida'),
+  expenseDate: z.string().min(1, 'La fecha es requerida'),
   amount: z.string().min(1, 'El monto es requerido'),
   currency: z.string().default('MXN'),
   description: z.string().min(10, 'La descripción debe tener al menos 10 caracteres'),
-  merchant_name: z.string().min(1, 'El comercio es requerido'),
-  payment_method: z.string().min(1, 'El método de pago es requerido'),
-  category_id: z.string().optional(),
-  project_id: z.string().optional(),
-  invoice_folio: z.string().optional(),
-  rfc_vendor: z.string().optional(),
+  merchantName: z.string().min(1, 'El comercio es requerido'),
+  paymentMethod: z.string().min(1, 'El método de pago es requerido'),
+  categoryId: z.string().optional(),
+  projectId: z.string().optional(),
 })
 
 type ExpenseFormData = z.infer<typeof expenseSchema>
@@ -28,13 +29,15 @@ const EditExpensePage = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
 
   const { data: expense, isLoading } = useQuery({
     queryKey: ['expense', id],
-    queryFn: () => expensesApi.getById(id!),
+    queryFn: () => expensesService.getExpense(id!),
     enabled: !!id,
   })
 
+  // We need to shape the data for the form
   const {
     register,
     handleSubmit,
@@ -42,37 +45,68 @@ const EditExpensePage = () => {
   } = useForm<ExpenseFormData>({
     resolver: zodResolver(expenseSchema),
     values: expense ? {
-      expense_date: format(new Date(expense.expense_date), 'yyyy-MM-dd'),
+      expenseDate: format(new Date(expense.expenseDate), 'yyyy-MM-dd'),
       amount: expense.amount.toString(),
-      currency: expense.currency,
+      currency: expense.currency || 'MXN',
       description: expense.description,
-      merchant_name: expense.merchant_name,
-      payment_method: expense.payment_method,
-      category_id: expense.category?.id || '',
-      project_id: expense.project?.id || '',
-      invoice_folio: expense.invoice_folio || '',
-      rfc_vendor: expense.rfc_vendor || '',
+      merchantName: expense.merchantName || '',
+      paymentMethod: expense.paymentMethod || '',
+      categoryId: expense.category?.id || '',
+      projectId: expense.project?.id || '',
     } : undefined,
   })
 
   const updateMutation = useMutation({
-    mutationFn: (data: ExpenseFormData) => expensesApi.update(id!, {
-      ...data,
-      amount: parseFloat(data.amount),
-    }),
+    mutationFn: (data: ExpenseFormData) => {
+      const payload: Partial<CreateExpenseData> = {
+        expenseDate: data.expenseDate,
+        amount: parseFloat(data.amount),
+        currency: data.currency,
+        description: data.description,
+        merchantName: data.merchantName,
+        paymentMethod: data.paymentMethod,
+        categoryId: data.categoryId,
+        projectId: data.projectId
+      };
+      return expensesService.updateExpense(id!, payload);
+    },
     onSuccess: () => {
-      toast.success('Gasto actualizado exitosamente')
+      // Don't navigate here, handled in onSubmit
       queryClient.invalidateQueries({ queryKey: ['expenses'] })
       queryClient.invalidateQueries({ queryKey: ['expense', id] })
-      navigate(`/expenses/${id}`)
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Error al actualizar el gasto')
     },
   })
 
-  const onSubmit = (data: ExpenseFormData) => {
-    updateMutation.mutate(data)
+  const uploadMutation = useMutation({
+    mutationFn: (file: File) => expensesService.addAttachment(id!, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expense', id] })
+    },
+  })
+
+  const onSubmit = async (data: ExpenseFormData) => {
+    try {
+      // 1. Update expense details
+      await updateMutation.mutateAsync(data)
+
+      // 2. Upload file if exists
+      if (uploadFile) {
+        await toast.promise(
+          uploadMutation.mutateAsync(uploadFile),
+          {
+            loading: 'Subiendo archivo...',
+            success: 'Archivo subido exitosamente',
+            error: 'Error al subir arcivo',
+          }
+        )
+      }
+
+      toast.success('Gasto actualizado correctamente')
+      navigate(`/expenses/${id}`)
+    } catch (error: any) {
+      console.error(error)
+      toast.error(error.response?.data?.message || 'Error al guardar los cambios')
+    }
   }
 
   if (isLoading) {
@@ -148,11 +182,11 @@ const EditExpensePage = () => {
                   </label>
                   <input
                     type="date"
-                    {...register('expense_date')}
+                    {...register('expenseDate')}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
-                  {errors.expense_date && (
-                    <p className="mt-1 text-sm text-red-600">{errors.expense_date.message}</p>
+                  {errors.expenseDate && (
+                    <p className="mt-1 text-sm text-red-600">{errors.expenseDate.message}</p>
                   )}
                 </div>
 
@@ -188,12 +222,12 @@ const EditExpensePage = () => {
                   </label>
                   <input
                     type="text"
-                    {...register('merchant_name')}
+                    {...register('merchantName')}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Ej: Walmart, Uber, Hotel..."
                   />
-                  {errors.merchant_name && (
-                    <p className="mt-1 text-sm text-red-600">{errors.merchant_name.message}</p>
+                  {errors.merchantName && (
+                    <p className="mt-1 text-sm text-red-600">{errors.merchantName.message}</p>
                   )}
                 </div>
 
@@ -202,7 +236,7 @@ const EditExpensePage = () => {
                     Método de Pago *
                   </label>
                   <select
-                    {...register('payment_method')}
+                    {...register('paymentMethod')}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="">Seleccionar...</option>
@@ -211,8 +245,8 @@ const EditExpensePage = () => {
                     <option value="Tarjeta de Débito">Tarjeta de Débito</option>
                     <option value="Transferencia">Transferencia</option>
                   </select>
-                  {errors.payment_method && (
-                    <p className="mt-1 text-sm text-red-600">{errors.payment_method.message}</p>
+                  {errors.paymentMethod && (
+                    <p className="mt-1 text-sm text-red-600">{errors.paymentMethod.message}</p>
                   )}
                 </div>
 
@@ -242,7 +276,7 @@ const EditExpensePage = () => {
                     Categoría
                   </label>
                   <select
-                    {...register('category_id')}
+                    {...register('categoryId')}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="">Sin categoría</option>
@@ -259,7 +293,7 @@ const EditExpensePage = () => {
                     Proyecto
                   </label>
                   <select
-                    {...register('project_id')}
+                    {...register('projectId')}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="">Sin proyecto</option>
@@ -270,65 +304,33 @@ const EditExpensePage = () => {
               </div>
             </div>
 
-            {/* Información Fiscal */}
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                Información Fiscal (Opcional)
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Folio Fiscal (UUID)
-                  </label>
-                  <input
-                    type="text"
-                    {...register('invoice_folio')}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    RFC del Proveedor
-                  </label>
-                  <input
-                    type="text"
-                    {...register('rfc_vendor')}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="XAXX010101000"
-                  />
-                </div>
-              </div>
-            </div>
-
             {/* Archivos Adjuntos */}
             <div>
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Archivos Adjuntos</h2>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
-                <div className="text-center">
-                  <Upload className="mx-auto text-gray-400 mb-2" size={48} />
-                  <p className="text-sm text-gray-600 mb-2">
-                    Arrastra y suelta archivos aquí, o haz clic para seleccionar
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    PDF, JPG, PNG (máx. 10MB por archivo)
-                  </p>
-                  <button
-                    type="button"
-                    className="mt-4 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                  >
-                    Seleccionar Archivos
-                  </button>
-                </div>
+
+              <div className="mb-4">
+                <p className="text-sm font-medium text-gray-700 mb-2">Agregar Archivo</p>
+                <ImageUpload
+                  value={uploadFile}
+                  onFileSelect={setUploadFile}
+                  onRemove={() => setUploadFile(null)}
+                  label="Arrastra un comprobante (imagen o PDF)"
+                />
               </div>
+
               {expense.attachments && expense.attachments.length > 0 && (
-                <div className="mt-4">
-                  <p className="text-sm text-gray-600 mb-2">Archivos actuales:</p>
-                  <div className="space-y-2">
-                    {expense.attachments.map((file: any) => (
-                      <div key={file.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                        <span className="text-sm">{file.file_name}</span>
+                <div className="mt-4 border-t pt-4">
+                  <p className="text-sm font-medium text-gray-700 mb-2">Archivos existentes:</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {expense.attachments.map((file) => (
+                      <div key={file.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                        <div className="p-2 bg-white rounded shadow-sm">
+                          <FileText size={20} className="text-blue-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{file.fileName}</p>
+                          <p className="text-xs text-gray-500">{file.fileType}</p>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -348,10 +350,10 @@ const EditExpensePage = () => {
             </button>
             <button
               type="submit"
-              disabled={updateMutation.isPending}
+              disabled={updateMutation.isPending || uploadMutation.isPending}
               className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
             >
-              {updateMutation.isPending ? (
+              {(updateMutation.isPending || uploadMutation.isPending) ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                   Guardando...

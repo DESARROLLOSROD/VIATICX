@@ -12,6 +12,7 @@ import { User } from '../users/user.entity';
 import { Company } from '../companies/company.entity';
 import { ExpenseCategory } from '../categories/expense-category.entity';
 import { Project } from '../projects/project.entity';
+import { Attachment } from './attachment.entity';
 
 export enum ExpenseStatus {
   PENDING = 'pending',
@@ -120,6 +121,9 @@ export class Expense {
 
   @Column({ name: 'batch_number', nullable: true })
   batchNumber: string;
+
+  @OneToMany(() => Attachment, (attachment) => attachment.expense, { cascade: true })
+  attachments: Attachment[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

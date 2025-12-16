@@ -1,0 +1,3 @@
+src/components/layout/MainLayout.tsx(14,3): error TS6133: 'Settings' is declared but its value is never read.
+src/components/ui/Modal.tsx(1,10): error TS6133: 'Fragment' is declared but its value is never read.
+src/components/ui/Modal.tsx(5,1): error TS6133: 'Button' is declared but its value is never read.

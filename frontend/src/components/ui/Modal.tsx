@@ -1,8 +1,7 @@
-import { Fragment, useRef } from 'react';
+import { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
-import Button from './Button';
 
 function cn(...inputs: ClassValue[]) {
     return clsx(inputs);
