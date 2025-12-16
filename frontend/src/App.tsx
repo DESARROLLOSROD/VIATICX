@@ -7,6 +7,9 @@ import RegisterPage from './pages/RegisterPage'
 import DashboardPage from './pages/DashboardPage'
 import ExpensesPage from './pages/ExpensesPage'
 import NewExpensePage from './pages/NewExpensePage'
+import ExpenseDetailPage from './pages/ExpenseDetailPage'
+import EditExpensePage from './pages/EditExpensePage'
+import ApprovalsPage from './pages/ApprovalsPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -50,6 +53,30 @@ function App() {
             element={
               <ProtectedRoute>
                 <NewExpensePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/expenses/:id"
+            element={
+              <ProtectedRoute>
+                <ExpenseDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/expenses/:id/edit"
+            element={
+              <ProtectedRoute>
+                <EditExpensePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/approvals"
+            element={
+              <ProtectedRoute>
+                <ApprovalsPage />
               </ProtectedRoute>
             }
           />
