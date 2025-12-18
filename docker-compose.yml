@@ -1,27 +1,28 @@
 version: '3.8'
 
 services:
-  # Base de Datos PostgreSQL
-  db:
-    image: postgres:16-alpine
-    container_name: viaticx_db
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-viaticx}
-      POSTGRES_USER: ${POSTGRES_USER:-viaticx_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?ERROR: POSTGRES_PASSWORD must be set in .env file}
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./database/schema.sql:/docker-entrypoint-initdb.d/schema.sql
-    networks:
-      - viaticx_network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U viaticx_user -d viaticx"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  # Base de Datos PostgreSQL - DISABLED (Using Supabase)
+  # Uncomment this section if you want to use local PostgreSQL instead
+  # db:
+  #   image: postgres:16-alpine
+  #   container_name: viaticx_db
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_DB: ${POSTGRES_DB:-viaticx}
+  #     POSTGRES_USER: ${POSTGRES_USER:-viaticx_user}
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?ERROR: POSTGRES_PASSWORD must be set in .env file}
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #     - ./database/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+  #   networks:
+  #     - viaticx_network
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U viaticx_user -d viaticx"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
 
   # Redis para caching (opcional pero recomendado)
   redis:
@@ -50,31 +51,31 @@ services:
     ports:
       - "${BACKEND_PORT:-3001}:${PORT:-3001}"
     environment:
-      - NODE_ENV=${NODE_ENV:-development}
-      - PORT=${PORT:-3001}
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-viaticx_user}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-viaticx}
-      - JWT_SECRET=${JWT_SECRET:?ERROR: JWT_SECRET must be set in .env file}
-      - JWT_EXPIRATION=${JWT_EXPIRATION:-15m}
-      - REFRESH_TOKEN_SECRET=${REFRESH_TOKEN_SECRET:?ERROR: REFRESH_TOKEN_SECRET must be set in .env file}
-      - REFRESH_TOKEN_EXPIRATION=${REFRESH_TOKEN_EXPIRATION:-7d}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000}
-      - MAX_FILE_SIZE=${MAX_FILE_SIZE:-10485760}
-      - RATE_LIMIT_TTL=${RATE_LIMIT_TTL:-60}
-      - RATE_LIMIT_MAX=${RATE_LIMIT_MAX:-100}
-      - AUTH_RATE_LIMIT_MAX=${AUTH_RATE_LIMIT_MAX:-5}
-      - LOG_LEVEL=${LOG_LEVEL:-info}
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${PORT:-3001}
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-15m}
+      REFRESH_TOKEN_SECRET: ${REFRESH_TOKEN_SECRET}
+      REFRESH_TOKEN_EXPIRATION: ${REFRESH_TOKEN_EXPIRATION:-7d}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-10485760}
+      RATE_LIMIT_TTL: ${RATE_LIMIT_TTL:-60}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-100}
+      AUTH_RATE_LIMIT_MAX: ${AUTH_RATE_LIMIT_MAX:-5}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     volumes:
       - ./backend:/app
       - /app/node_modules
       - uploads_data:/app/uploads
     depends_on:
-      db:
-        condition: service_healthy
       redis:
         condition: service_healthy
+      # db:
+      #   condition: service_healthy
     networks:
       - viaticx_network
     command: npm run start:dev

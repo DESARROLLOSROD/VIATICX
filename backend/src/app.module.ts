@@ -27,14 +27,21 @@ import { ReportsModule } from './modules/reports/reports.module';
     // Database
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        url: configService.get('DATABASE_URL'),
-        entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: configService.get('NODE_ENV') === 'development', // Solo en desarrollo
-        logging: configService.get('NODE_ENV') === 'development',
-        ssl: configService.get('NODE_ENV') === 'production' ? { rejectUnauthorized: false } : false,
-      }),
+      useFactory: (configService: ConfigService) => {
+        const databaseUrl = configService.get('DATABASE_URL');
+        const isSupabase = databaseUrl?.includes('supabase.co');
+
+        return {
+          type: 'postgres',
+          url: databaseUrl,
+          entities: [__dirname + '/**/*.entity{.ts,.js}'],
+          synchronize: configService.get('NODE_ENV') === 'development', // Solo en desarrollo
+          logging: configService.get('NODE_ENV') === 'development',
+          // Supabase always requires SSL, even in development
+          ssl: isSupabase ? { rejectUnauthorized: false } :
+               (configService.get('NODE_ENV') === 'production' ? { rejectUnauthorized: false } : false),
+        };
+      },
       inject: [ConfigService],
     }),
 
