@@ -1,9 +1,5 @@
 import { InputHTMLAttributes, forwardRef } from 'react';
-import { clsx, type ClassValue } from 'clsx';
-
-function cn(...inputs: ClassValue[]) {
-    return clsx(inputs);
-}
+import { cn } from '../../utils/cn';
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
     label?: string;

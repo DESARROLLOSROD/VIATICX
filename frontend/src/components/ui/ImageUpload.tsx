@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { Upload, X, File as FileIcon } from 'lucide-react'
-import { clsx, type ClassValue } from 'clsx'
-
-function cn(...inputs: ClassValue[]) {
-    return clsx(inputs)
-}
+import { cn } from '../../utils/cn'
 
 interface ImageUploadProps {
     onFileSelect: (file: File) => void

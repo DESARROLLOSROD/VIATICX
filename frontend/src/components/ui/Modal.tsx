@@ -1,11 +1,7 @@
 import { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import { clsx, type ClassValue } from 'clsx';
-
-function cn(...inputs: ClassValue[]) {
-    return clsx(inputs);
-}
+import { cn } from '../../utils/cn';
 
 export interface ModalProps {
     isOpen: boolean;

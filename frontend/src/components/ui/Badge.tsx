@@ -1,9 +1,5 @@
 import { HTMLAttributes, forwardRef } from 'react';
-import { clsx, type ClassValue } from 'clsx';
-
-function cn(...inputs: ClassValue[]) {
-    return clsx(inputs);
-}
+import { cn } from '../../utils/cn';
 
 export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
     variant?: 'default' | 'primary' | 'success' | 'warning' | 'error' | 'outline' | 'secondary';

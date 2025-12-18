@@ -1,11 +1,6 @@
 import { ButtonHTMLAttributes, forwardRef } from 'react';
-import { clsx, type ClassValue } from 'clsx';
 import { Loader2 } from 'lucide-react';
-
-// Simple utility for class merging since we only have clsx
-function cn(...inputs: ClassValue[]) {
-    return clsx(inputs);
-}
+import { cn } from '../../utils/cn';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
     variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';

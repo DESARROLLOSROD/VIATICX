@@ -11,6 +11,7 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { Card, CardContent } from '@/components/ui/Card';
 import Input from '@/components/ui/Input';
+import { formatCurrency } from '@/utils/format';
 
 export default function ExpensesPage() {
   const [filters, setFilters] = useState({
@@ -58,13 +59,6 @@ export default function ExpensesPage() {
         {labels[status] || status}
       </Badge>
     );
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: 'MXN',
-    }).format(amount);
   };
 
   return (

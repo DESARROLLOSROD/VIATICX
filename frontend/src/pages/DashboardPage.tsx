@@ -2,19 +2,13 @@ import { useQuery } from '@tanstack/react-query';
 import { expensesService } from '@/services/expenses.service';
 import MainLayout from '@/components/layout/MainLayout';
 import { Receipt, CheckCircle, XCircle, Clock, TrendingUp } from 'lucide-react';
+import { formatCurrency } from '@/utils/format';
 
 export default function DashboardPage() {
   const { data: stats } = useQuery({
     queryKey: ['expense-stats'],
     queryFn: () => expensesService.getStats(),
   });
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: 'MXN',
-    }).format(amount || 0);
-  };
 
   const statsCards = [
     {
